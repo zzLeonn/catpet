@@ -3,7 +3,6 @@ import sys
 import win32api
 import win32con
 import win32gui
-import os
 import random
 
 # Initialize Pygame
@@ -112,55 +111,114 @@ while running:
             if pet_rect.collidepoint(mouse_pos):
                 special_duration = 0  # Cancel any special animation
                 dragging = True
-                current_state = "walk_right"
+                # Set initial direction based on click position
+                if mouse_pos[0] < pet_rect.centerx:
+                    current_state = "walk_right"
+                else:
+                    current_state = "walk_left"
                 current_frame = 0
         elif event.type == pygame.MOUSEBUTTONUP:
             dragging = False
             current_state = "idle"
             current_frame = 0
         elif event.type == pygame.MOUSEMOTION and dragging:
+            # Update position and animation direction
+            rel_x = event.rel[0]
             pet_rect.move_ip(event.rel)
             pet_rect.x = max(0, min(pet_rect.x, screen_width - pet_rect.width))
             pet_rect.y = max(0, min(pet_rect.y, screen_height - pet_rect.height))
+            
+            # Update direction based on horizontal movement
+            if rel_x > 0:
+                current_state = "walk_right"
+            elif rel_x < 0:
+                current_state = "walk_left"
 
-    # Random event logic
-    if not dragging and current_time - event_timer > EVENT_INTERVAL and special_duration == 0:
-        active_event = get_random_event()
+    # Hover logic
+    mouse_pos = pygame.mouse.get_pos()
+    hovering = pet_rect.collidepoint(mouse_pos) and not dragging
+    
+    if hovering:
+        # Interrupt any special animations
+        if special_duration > 0:
+            special_duration = 0
+            current_state = "idle"
+            current_frame = 0
+        
+        # Determine direction to move away from cursor
+        if mouse_pos[0] < pet_rect.centerx:
+            move_dir = "right"
+            new_state = "walk_right"
+        else:
+            move_dir = "left"
+            new_state = "walk_left"
+        
+        # Update state and move
+        current_state = new_state
+        speed = WALK_SPEED
+        new_x = pet_rect.x
+        if move_dir == "right":
+            new_x += speed
+            if new_x + pet_rect.width > screen_width:
+                new_x = screen_width - pet_rect.width
+        else:
+            new_x -= speed
+            if new_x < 0:
+                new_x = 0
+        pet_rect.x = new_x
+        
+        # Update animation
+        frame_counter += 1
+        if frame_counter >= animation_speed:
+            current_frame = (current_frame + 1) % len(animations[current_state])
+            frame_counter = 0
+        
+        # Reset event system
+        active_event = None
         event_timer = current_time
-        
-        if active_event == "walk":
-            current_state = "walk_right" if random.choice([True, False]) else "walk_left"
-            move_direction = "right" if "right" in current_state else "left"
-        elif active_event == "run":
-            current_state = "run_right" if random.choice([True, False]) else "run_left"
-            move_direction = "right" if "right" in current_state else "left"
-        elif active_event == "sit":
-            current_state = "sit"
-            special_duration = random.randint(2000, 8000)
-            special_start = current_time
-        elif active_event == "stretch":
-            current_state = "stretch"
-            special_duration = len(animations["stretch"]) * animation_speed * 16  # Full animation cycle
-            special_start = current_time
-        elif active_event == "sleep":
-            current_state = "sleep"
-            special_duration = random.randint(2000, 10000)
-            special_start = current_time
-            current_frame = random.randint(0, 1)
-        
-        current_frame = 0
+    else:
+        # Random event logic
+        if not dragging and current_time - event_timer > EVENT_INTERVAL and special_duration == 0:
+            active_event = get_random_event()
+            event_timer = current_time
+            
+            if active_event == "walk":
+                current_state = "walk_right" if random.choice([True, False]) else "walk_left"
+                move_direction = "right" if "right" in current_state else "left"
+            elif active_event == "run":
+                current_state = "run_right" if random.choice([True, False]) else "run_left"
+                move_direction = "right" if "right" in current_state else "left"
+            elif active_event == "sit":
+                current_state = "sit"
+                special_duration = random.randint(2000, 8000)
+                special_start = current_time
+            elif active_event == "stretch":
+                current_state = "stretch"
+                special_duration = len(animations["stretch"]) * animation_speed * 16
+                special_start = current_time
+            elif active_event == "sleep":
+                current_state = "sleep"
+                special_duration = random.randint(2000, 10000)
+                special_start = current_time
+                current_frame = random.randint(0, 1)
+            elif active_event == "lick":
+                current_state = "lick"
+                special_duration = len(animations["lick"]) * animation_speed * 16
+                special_start = current_time
+            
+            current_frame = 0
 
     # Handle special durations
     if special_duration > 0:
         if current_time - special_start > special_duration:
             special_duration = 0
             current_state = "idle"
-            current_frame = 0  # Reset frame when returning to idle
+            current_frame = 0
         elif active_event in ["sit", "sleep"]:
             frame_counter = 0  # Freeze animation
 
     # Autonomous movement
-    if not dragging and special_duration == 0:
+    if not dragging and special_duration == 0 and not hovering:
         if active_event in ["walk", "run"]:
             speed = RUN_SPEED if active_event == "run" else WALK_SPEED
             
@@ -176,17 +234,15 @@ while running:
                     move_direction = "right"
 
     # Animation logic
-    if special_duration == 0 or active_event == "stretch":
+    if (special_duration == 0 or active_event == "stretch") and not hovering:
         frame_counter += 1
         if frame_counter >= animation_speed:
             current_frame = (current_frame + 1) % len(animations[current_state])
             frame_counter = 0
             
-            # Reset stretch animation after completion
             if active_event == "stretch" and current_frame == 0:
                 special_duration = 0
                 current_state = "idle"
-                current_frame = 0  # Ensure reset for stretch completion
 
     # Update display
     screen.fill((0, 0, 0))
