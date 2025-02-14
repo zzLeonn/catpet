@@ -155,6 +155,7 @@ while running:
         if current_time - special_start > special_duration:
             special_duration = 0
             current_state = "idle"
+            current_frame = 0  # Reset frame when returning to idle
         elif active_event in ["sit", "sleep"]:
             frame_counter = 0  # Freeze animation
 
@@ -185,6 +186,7 @@ while running:
             if active_event == "stretch" and current_frame == 0:
                 special_duration = 0
                 current_state = "idle"
+                current_frame = 0  # Ensure reset for stretch completion
 
     # Update display
     screen.fill((0, 0, 0))
