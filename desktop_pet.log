@@ -1,0 +1,6 @@
+2025-05-31 13:15:58,253 - ERROR - Error loading assets\sprites\Cat-5-Blink.png: File not found: assets\sprites\Cat-5-Blink.png
+2025-05-31 13:15:58,259 - ERROR - Traceback (most recent call last):
+  File "d:\vscode projects\desktoppet\main.py", line 99, in load_spritesheet
+    raise FileNotFoundError(f"File not found: {image_path}")
+FileNotFoundError: File not found: assets\sprites\Cat-5-Blink.png
+
